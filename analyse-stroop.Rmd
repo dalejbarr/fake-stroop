@@ -23,15 +23,12 @@ knitr::opts_chunk$set(echo = TRUE)
 }
 
 ## a function to make it easier to print the top and bottom of truncated tables
-print_tbl_ellipse <- function(x, nhead = 3, ntail = nhead) {
-  tbl_rows <- knitr::kable(x)
-  top <- tbl_rows[seq_len(nhead + 2)]
-  ellipse_str <- substr(tbl_rows[1], 2, nchar(tbl_rows[1]))
-  ellipse_empty <- gsub("[^\\|]", " ", ellipse_str)
-  ellipse <- paste0("|", gsub("\\|", "...|", ellipse_empty))
-  
-  bottom <- tbl_rows[seq(length(tbl_rows) - ntail + 1, length(tbl_rows), 1)]
-  cat(top, ellipse, bottom, "\n", sep = "\n")
+tbl_ellipse <- function(x, nhead = 3, ntail = nhead) {
+  tbl_top <- head(x, nhead) |> lapply(as.character)
+  tbl_mid <- lapply(seq_along(tbl_top), function(.x) {"..."})
+  names(tbl_mid) <- names(tbl_top)
+  tbl_bot <- tail(x, ntail) |> lapply(as.character)
+  bind_rows(tbl_top, tbl_mid, tbl_bot)
 }
 ```
 
@@ -39,6 +36,7 @@ print_tbl_ellipse <- function(x, nhead = 3, ntail = nhead) {
 
 ```{r load-tidyverse, include=FALSE}
 library("tidyverse")
+library("lsr") # for cohensD
 
 ## the data in the subdirectory 'sample' was created using the commands:
 ##
@@ -174,46 +172,41 @@ sub_effects <- sub_means_wide %>%
 overall_stroop <- sub_effects %>%
   pull(effect)
 
-overall_mean <- mean(overall_stroop)
-
 overall_sd <- sd(overall_stroop)
 
 ## one-sample t-test
-overall_tstat <- overall_mean /
-  (overall_sd / sqrt(length(overall_stroop))) # standard error
+one_samp_t <- t.test(overall_stroop)
 
-overall_p <- 2 * (1 - pt(abs(overall_tstat),
-                         length(overall_stroop) - 1))
+## effect size
+overall_d <- cohensD(overall_stroop) # from lsr package
 
-## compare groups
-group_stats <- sub_effects %>%
-  group_by(eng_lang) %>%
-  summarise(mean_effect = mean(effect),
-            sd_effect = sd(effect),
-            N = n())
-
+## independent-samples t-test
 t_stats <- t.test(effect ~ eng_lang, sub_effects,
                   var.equal = TRUE)
 
+## descriptives not provided in t-test output
+group_stats <- sub_effects %>%
+  group_by(eng_lang) %>%
+  summarise(sd_effect = sd(effect), N = n())
+
+## effect size
+group_d <- cohensD(effect ~ eng_lang, sub_effects)
 ```
 
 ```{r reporting, include=FALSE}
+overall_tstr <- sprintf("%0.2f", one_samp_t[["statistic"]])
 
-overall_df <- length(overall_stroop) - 1L
+faster_or_slower <- if (one_samp_t[["estimate"]] > 0) "faster" else "slower"
 
-overall_tstr <- sprintf("%0.2f", overall_tstat)
-
-faster_or_slower <- if (overall_mean > 0) "faster" else "slower"
-
-overall_pstr <- if (overall_p < .001) {
+overall_pstr <- if (one_samp_t[["p.value"]] < .001) {
                   "< .001"
                 } else {
-                  sprintf("= %0.3f", overall_pc)
+                  sprintf("= %0.3f", one_samp_t[["p.value"]])
                 }
 
-native_eff <- group_stats %>%
-  filter(eng_lang == "native") %>%
-  pull(mean_effect)
+overall_ci <- sprintf("%0.0f", one_samp_t[["conf.int"]])
+
+native_eff <- t_stats[["estimate"]]["mean in group native"]
 
 native_sd <- group_stats %>%
   filter(eng_lang == "native") %>%
@@ -223,9 +216,7 @@ native_N <- group_stats %>%
   filter(eng_lang == "native") %>%
   pull(N)
 
-nonnative_eff <- group_stats %>%
-  filter(eng_lang == "nonnative") %>%
-  pull(mean_effect)
+nonnative_eff <- t_stats[["estimate"]]["mean in group nonnative"]
 
 nonnative_sd <- group_stats %>%
   filter(eng_lang == "nonnative") %>%
@@ -237,7 +228,7 @@ nonnative_N <- group_stats %>%
 
 sig_or_not <- if (t_stats[["p.value"]] < .05) "was" else "was not"
 
-t_df <- t_stats[["parameter"]] |> as.integer()
+t_df <- t_stats[["parameter"]] |> round() |> as.integer()
 
 t_stat <- sprintf("%0.2f", t_stats[["statistic"]])
 
@@ -246,50 +237,79 @@ t_pval <- if (t_stats[["p.value"]] < .001) {
           } else {
             sprintf("= %0.3f", t_stats[["p.value"]])
           }
-           
+
+t_ci <- sprintf("%0.0f", t_stats[["conf.int"]])
 ```
 
 This section shows how a results section might be written by someone given the subject means only (i.e., the data in `subject-means.csv`).
 
 ## Source Data
 
-```{r show-subject-means, echo=FALSE, results="asis"}
-print_tbl_ellipse(read_csv("subject-means.csv", col_types = "cii"))
+```{r show-subject-means, echo=FALSE}
+tbl_ellipse(read_csv("subject-means.csv", col_types = "cii")) |>
+  knitr::kable()
 ```
 
 ## Example Results
 
 ::: {#results style="background-color: rgb(220, 220, 255); padding: 5px;"}
 
-We ran `r .ul(nrow(sub_effects))` participants on a five-colour Stroop task. On average, speakers responded `r .ul(as.integer(overall_mean))` milliseconds 
-(SD = `r .ul(as.integer(overall_sd))`) 
+We ran `r .ul(nrow(sub_effects))` participants on a five-colour Stroop task. 
+
+On average, speakers responded `r .ul(round(one_samp_t[["estimate"]]))` milliseconds 
+(SD = `r .ul(round(overall_sd))`) 
 `r .ul(faster_or_slower, text = TRUE)` 
 in the congruent than in the incongruent condition,
-$t(`r .ul(overall_df, FALSE)`)=`r .ul(overall_tstr, FALSE)`$, 
-$p `r .ul(overall_pstr, FALSE)`$.
+$t(`r .ul(one_samp_t[["parameter"]], FALSE)`)=`r .ul(overall_tstr, FALSE)`$, 
+$p `r .ul(overall_pstr, FALSE)`$,
+$d = `r .ul(sprintf("%0.2f", overall_d), FALSE)`$,
+95% CI $[`r .ul(overall_ci[1], FALSE)`, `r .ul(overall_ci[2], FALSE)`]$.
 
 Native English speakers (N = `r .ul(native_N)`) 
 showed an average Stroop effect of 
-`r .ul(as.integer(native_eff))` ms (SD = `r .ul(as.integer(native_sd))`),
+`r .ul(round(native_eff))` ms (SD = `r .ul(round(native_sd))`),
 compared to an average of
-`r .ul(as.integer(nonnative_eff))` ms (SD = `r .ul(as.integer(nonnative_sd))`),
+`r .ul(round(nonnative_eff))` ms (SD = `r .ul(round(nonnative_sd))`),
 for non-native English speakers (N = `r .ul(nonnative_N)`). 
 According to a two-tailed independent-samples $t$-test with $\alpha = .05$, the group difference 
 `r .ul(sig_or_not, text=TRUE)` statistically significant, 
 $t(`r .ul(t_df, FALSE)`)=`r .ul(t_stat, FALSE)`$,
-$p `r .ul(t_pval, FALSE)`$.
+$p `r .ul(t_pval, FALSE)`$,
+$d = `r .ul(sprintf("%0.2f", group_d), FALSE)`$,
+95% CI $[`r .ul(t_ci[1], FALSE)`, `r .ul(t_ci[2], FALSE)`]$.
 
 :::
 
 ## Code to generate the results
 
-```{r idealised-setup, eval=FALSE}
+```{r idealised-setup}
 library("tidyverse")
+library("lsr") # for cohensD
 
 sub_means_wide <- read_csv("subject-means.csv", col_types = "cii")
 ```
 
 ```{r idealised-show, eval=FALSE, ref.label="idealised"}
+```
+
+Print out all the statistics for the overall Stroop effect.
+
+```{r idealised-print-overall}
+overall_sd
+
+one_samp_t
+
+overall_d
+```
+
+Print out all the statistics for the test of the group difference.
+
+```{r idealised-print-group}
+group_stats
+
+t_stats
+
+group_d
 ```
 
 # Realistic data
@@ -372,23 +392,27 @@ To illustrate the trial data, below we display data from a single file with tria
 
 ### `demographics.csv`
 
-```{r show-demographics, echo=FALSE, results="asis"}
-print_tbl_ellipse(demo_raw %>% replace_na(list(eng_lang = "")),
-                  .d_headtail[1], .d_headtail[2])
+```{r show-demographics, echo=FALSE}
+tbl_ellipse(demo_raw %>% replace_na(list(eng_lang = "")),
+            .d_headtail[1], .d_headtail[2]) |> knitr::kable()
 ```
 
 ### `transcript.csv`
 
 Note that the transcript file contains typos (e.g., ``r .tr_targ_typo``, observed for participant `r .tr_targ_id` on trial `r .tr_targ_tn`) because the values were entered by the experimenter in real time as the experiment progressed.
 
-```{r show-transcript, echo=FALSE, results="asis"}
-print_tbl_ellipse(transcript_raw, .headtail[1], .headtail[2])
+```{r show-transcript, echo=FALSE}
+tbl_ellipse(transcript_raw, .headtail[1], .headtail[2]) |>
+  knitr::kable()
 ```
 
-```{r show-trial-data, echo=FALSE, results="asis"}
+```{r show-trial-hdr, echo=FALSE, results="asis"}
 cat("### `", .targ_file, "`\n\n", sep = "")
+```
 
-print_tbl_ellipse(.targ_data, nhead = .targ_n, ntail = 6)
+```{r show-trial-data, echo=FALSE}
+tbl_ellipse(.targ_data, nhead = .targ_n, ntail = 6) |>
+  knitr::kable()
 ```
 
 ## Example Results
@@ -396,6 +420,7 @@ print_tbl_ellipse(.targ_data, nhead = .targ_n, ntail = 6)
 ::: {#results style="background-color: rgb(220, 220, 255); padding: 5px;"}
 
 We ran `r .ul(nrow(demo))` participants on a five-colour Stroop task.
+
 We had to remove data from 
 `r .ul(nrow(demo %>% filter(is.na(eng_lang))))` participants whose native language was not properly recorded by the experimenter. 
 From the full set of `r .ul(nrow(trials))` trials recorded for the remaining participants, we removed
@@ -406,25 +431,29 @@ where participants produced the wrong answer and
 (`r .ul(sprintf("%0.1f", 100 * n_trials_NA / nrow(trials)))`%)
 further trials that could not be analysed because of voice key failure.
 This left
-`r .ul(nrow(trials) - n_trials_wrong - n_trials_NA)` trials for analysis.
+`r .ul(nrow(trials) - n_trials_wrong - n_trials_NA)` trials for analysis. For each participant, we calculated the mean response time in the congruent and incongruent condition. 
 
-For each participant, we calculated the mean response time in the congruent and incongruent condition. On average, speakers responded `r .ul(as.integer(overall_mean))` milliseconds 
-(SD = `r .ul(as.integer(overall_sd))`) 
+On average, speakers responded `r .ul(round(one_samp_t[["estimate"]]))` milliseconds 
+(SD = `r .ul(round(overall_sd))`) 
 `r .ul(faster_or_slower, text = TRUE)` 
 in the congruent than in the incongruent condition,
-$t(`r .ul(overall_df, FALSE)`)=`r .ul(overall_tstr, FALSE)`$, 
-$p `r .ul(overall_pstr, FALSE)`$.
+$t(`r .ul(one_samp_t[["parameter"]], FALSE)`)=`r .ul(overall_tstr, FALSE)`$, 
+$p `r .ul(overall_pstr, FALSE)`$,
+$d = `r .ul(sprintf("%0.2f", overall_d), FALSE)`$,
+95% CI $[`r .ul(overall_ci[1], FALSE)`, `r .ul(overall_ci[2], FALSE)`]$.
 
 Native English speakers (N = `r .ul(native_N)`) 
 showed an average Stroop effect of 
-`r .ul(as.integer(native_eff))` ms (SD = `r .ul(as.integer(native_sd))`),
+`r .ul(round(native_eff))` ms (SD = `r .ul(round(native_sd))`),
 compared to an average of
-`r .ul(as.integer(nonnative_eff))` ms (SD = `r .ul(as.integer(nonnative_sd))`),
+`r .ul(round(nonnative_eff))` ms (SD = `r .ul(round(nonnative_sd))`),
 for non-native English speakers (N = `r .ul(nonnative_N)`). 
 According to a two-tailed independent-samples $t$-test with $\alpha = .05$, the group difference 
 `r .ul(sig_or_not, text=TRUE)` statistically significant, 
 $t(`r .ul(t_df, FALSE)`)=`r .ul(t_stat, FALSE)`$,
-$p `r .ul(t_pval, FALSE)`$.
+$p `r .ul(t_pval, FALSE)`$,
+$d = `r .ul(sprintf("%0.2f", group_d), FALSE)`$,
+95% CI $[`r .ul(t_ci[1], FALSE)`, `r .ul(t_ci[2], FALSE)`]$.
 
 :::
 

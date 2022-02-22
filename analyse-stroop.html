@@ -384,45 +384,45 @@ pre code {
 <thead>
 <tr class="header">
 <th align="left">eng_lang</th>
-<th align="right">congruent</th>
-<th align="right">incongruent</th>
+<th align="left">congruent</th>
+<th align="left">incongruent</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td align="left">native</td>
-<td align="right">587</td>
-<td align="right">710</td>
+<td align="left">587</td>
+<td align="left">710</td>
 </tr>
 <tr class="even">
 <td align="left">native</td>
-<td align="right">436</td>
-<td align="right">571</td>
+<td align="left">436</td>
+<td align="left">571</td>
 </tr>
 <tr class="odd">
 <td align="left">native</td>
-<td align="right">601</td>
-<td align="right">803</td>
+<td align="left">601</td>
+<td align="left">803</td>
 </tr>
 <tr class="even">
 <td align="left">…</td>
-<td align="right">…</td>
-<td align="right">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
 </tr>
 <tr class="odd">
 <td align="left">nonnative</td>
-<td align="right">676</td>
-<td align="right">903</td>
+<td align="left">676</td>
+<td align="left">903</td>
 </tr>
 <tr class="even">
 <td align="left">nonnative</td>
-<td align="right">461</td>
-<td align="right">492</td>
+<td align="left">461</td>
+<td align="left">492</td>
 </tr>
 <tr class="odd">
 <td align="left">nonnative</td>
-<td align="right">467</td>
-<td align="right">622</td>
+<td align="left">467</td>
+<td align="left">622</td>
 </tr>
 </tbody>
 </table>
@@ -430,13 +430,15 @@ pre code {
 <div id="example-results" class="section level2">
 <h2>Example Results</h2>
 <div id="results" style="background-color: rgb(220, 220, 255); padding: 5px;">
-<p>We ran <span class="math inline">\(\underline{40}\)</span> participants on a five-colour Stroop task. On average, speakers responded <span class="math inline">\(\underline{184}\)</span> milliseconds (SD = <span class="math inline">\(\underline{68}\)</span>) <span class="math inline">\(\underline{\text{faster}}\)</span> in the congruent than in the incongruent condition, <span class="math inline">\(t(\underline{39})=\underline{16.95}\)</span>, <span class="math inline">\(p \underline{&lt; .001}\)</span>.</p>
-<p>Native English speakers (N = <span class="math inline">\(\underline{22}\)</span>) showed an average Stroop effect of <span class="math inline">\(\underline{192}\)</span> ms (SD = <span class="math inline">\(\underline{70}\)</span>), compared to an average of <span class="math inline">\(\underline{173}\)</span> ms (SD = <span class="math inline">\(\underline{66}\)</span>), for non-native English speakers (N = <span class="math inline">\(\underline{18}\)</span>). According to a two-tailed independent-samples <span class="math inline">\(t\)</span>-test with <span class="math inline">\(\alpha = .05\)</span>, the group difference <span class="math inline">\(\underline{\text{was not}}\)</span> statistically significant, <span class="math inline">\(t(\underline{38})=\underline{0.85}\)</span>, <span class="math inline">\(p \underline{= 0.401}\)</span>.</p>
+<p>We ran <span class="math inline">\(\underline{40}\)</span> participants on a five-colour Stroop task.</p>
+<p>On average, speakers responded <span class="math inline">\(\underline{184}\)</span> milliseconds (SD = <span class="math inline">\(\underline{69}\)</span>) <span class="math inline">\(\underline{\text{faster}}\)</span> in the congruent than in the incongruent condition, <span class="math inline">\(t(\underline{39})=\underline{16.95}\)</span>, <span class="math inline">\(p \underline{&lt; .001}\)</span>, <span class="math inline">\(d = \underline{2.68}\)</span>, 95% CI <span class="math inline">\([\underline{162}, \underline{206}]\)</span>.</p>
+<p>Native English speakers (N = <span class="math inline">\(\underline{22}\)</span>) showed an average Stroop effect of <span class="math inline">\(\underline{193}\)</span> ms (SD = <span class="math inline">\(\underline{71}\)</span>), compared to an average of <span class="math inline">\(\underline{174}\)</span> ms (SD = <span class="math inline">\(\underline{67}\)</span>), for non-native English speakers (N = <span class="math inline">\(\underline{18}\)</span>). According to a two-tailed independent-samples <span class="math inline">\(t\)</span>-test with <span class="math inline">\(\alpha = .05\)</span>, the group difference <span class="math inline">\(\underline{\text{was not}}\)</span> statistically significant, <span class="math inline">\(t(\underline{38})=\underline{0.85}\)</span>, <span class="math inline">\(p \underline{= 0.401}\)</span>, <span class="math inline">\(d = \underline{0.27}\)</span>, 95% CI <span class="math inline">\([\underline{-26}, \underline{63}]\)</span>.</p>
 </div>
 </div>
 <div id="code-to-generate-the-results" class="section level2">
 <h2>Code to generate the results</h2>
 <pre class="r"><code>library(&quot;tidyverse&quot;)
+library(&quot;lsr&quot;) # for cohensD
 
 sub_means_wide &lt;- read_csv(&quot;subject-means.csv&quot;, col_types = &quot;cii&quot;)</code></pre>
 <pre class="r"><code>## calculate the stroop effect for each participant
@@ -447,26 +449,63 @@ sub_effects &lt;- sub_means_wide %&gt;%
 overall_stroop &lt;- sub_effects %&gt;%
   pull(effect)
 
-overall_mean &lt;- mean(overall_stroop)
-
 overall_sd &lt;- sd(overall_stroop)
 
 ## one-sample t-test
-overall_tstat &lt;- overall_mean /
-  (overall_sd / sqrt(length(overall_stroop))) # standard error
+one_samp_t &lt;- t.test(overall_stroop)
 
-overall_p &lt;- 2 * (1 - pt(abs(overall_tstat),
-                         length(overall_stroop) - 1))
+## effect size
+overall_d &lt;- cohensD(overall_stroop) # from lsr package
 
-## compare groups
+## independent-samples t-test
+t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
+                  var.equal = TRUE)
+
+## descriptives not provided in t-test output
 group_stats &lt;- sub_effects %&gt;%
   group_by(eng_lang) %&gt;%
-  summarise(mean_effect = mean(effect),
-            sd_effect = sd(effect),
-            N = n())
+  summarise(sd_effect = sd(effect), N = n())
 
-t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
-                  var.equal = TRUE)</code></pre>
+## effect size
+group_d &lt;- cohensD(effect ~ eng_lang, sub_effects)</code></pre>
+<p>Print out all the statistics for the overall Stroop effect.</p>
+<pre class="r"><code>overall_sd</code></pre>
+<pre><code>## [1] 68.7164</code></pre>
+<pre class="r"><code>one_samp_t</code></pre>
+<pre><code>## 
+##  One Sample t-test
+## 
+## data:  overall_stroop
+## t = 16.951, df = 39, p-value &lt; 2.2e-16
+## alternative hypothesis: true mean is not equal to 0
+## 95 percent confidence interval:
+##  162.1984 206.1516
+## sample estimates:
+## mean of x 
+##   184.175</code></pre>
+<pre class="r"><code>overall_d</code></pre>
+<pre><code>## [1] 2.680219</code></pre>
+<p>Print out all the statistics for the test of the group difference.</p>
+<pre class="r"><code>group_stats</code></pre>
+<pre><code>## # A tibble: 2 × 3
+##   eng_lang  sd_effect     N
+##   &lt;chr&gt;         &lt;dbl&gt; &lt;int&gt;
+## 1 native         70.7    22
+## 2 nonnative      66.8    18</code></pre>
+<pre class="r"><code>t_stats</code></pre>
+<pre><code>## 
+##  Two Sample t-test
+## 
+## data:  effect by eng_lang
+## t = 0.84865, df = 38, p-value = 0.4014
+## alternative hypothesis: true difference in means between group native and group nonnative is not equal to 0
+## 95 percent confidence interval:
+##  -25.77020  62.97222
+## sample estimates:
+##    mean in group native mean in group nonnative 
+##                192.5455                173.9444</code></pre>
+<pre class="r"><code>group_d</code></pre>
+<pre><code>## [1] 0.2697197</code></pre>
 </div>
 </div>
 <div id="realistic-data" class="section level1">
@@ -480,60 +519,60 @@ t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
 <table>
 <thead>
 <tr class="header">
-<th align="right">id</th>
-<th align="right">age</th>
+<th align="left">id</th>
+<th align="left">age</th>
 <th align="left">eng_lang</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="right">1</td>
-<td align="right">226</td>
+<td align="left">1</td>
+<td align="left">226</td>
 <td align="left">native</td>
 </tr>
 <tr class="even">
-<td align="right">2</td>
-<td align="right">21</td>
+<td align="left">2</td>
+<td align="left">21</td>
 <td align="left">nonnative</td>
 </tr>
 <tr class="odd">
-<td align="right">3</td>
-<td align="right">21</td>
+<td align="left">3</td>
+<td align="left">21</td>
 <td align="left">native</td>
 </tr>
 <tr class="even">
-<td align="right">4</td>
-<td align="right">21</td>
+<td align="left">4</td>
+<td align="left">21</td>
 <td align="left">nonnative</td>
 </tr>
 <tr class="odd">
-<td align="right">5</td>
-<td align="right">22</td>
+<td align="left">5</td>
+<td align="left">22</td>
 <td align="left"></td>
 </tr>
 <tr class="even">
-<td align="right">6</td>
-<td align="right">24</td>
+<td align="left">6</td>
+<td align="left">24</td>
 <td align="left">nativ</td>
 </tr>
 <tr class="odd">
-<td align="right">…</td>
-<td align="right">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
 <td align="left">…</td>
 </tr>
 <tr class="even">
-<td align="right">42</td>
-<td align="right">23</td>
+<td align="left">42</td>
+<td align="left">23</td>
 <td align="left">nonnative</td>
 </tr>
 <tr class="odd">
-<td align="right">43</td>
-<td align="right">18</td>
+<td align="left">43</td>
+<td align="left">18</td>
 <td align="left">native</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">24</td>
+<td align="left">44</td>
+<td align="left">24</td>
 <td align="left">nonnative</td>
 </tr>
 </tbody>
@@ -545,95 +584,95 @@ t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
 <table>
 <thead>
 <tr class="header">
-<th align="right">id</th>
-<th align="right">trial</th>
+<th align="left">id</th>
+<th align="left">trial</th>
 <th align="left">response</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="right">1</td>
-<td align="right">1</td>
+<td align="left">1</td>
+<td align="left">1</td>
 <td align="left">red</td>
 </tr>
 <tr class="even">
-<td align="right">1</td>
-<td align="right">2</td>
+<td align="left">1</td>
+<td align="left">2</td>
 <td align="left">green</td>
 </tr>
 <tr class="odd">
-<td align="right">1</td>
-<td align="right">3</td>
+<td align="left">1</td>
+<td align="left">3</td>
 <td align="left">red</td>
 </tr>
 <tr class="even">
-<td align="right">…</td>
-<td align="right">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
 <td align="left">…</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">38</td>
+<td align="left">44</td>
+<td align="left">38</td>
 <td align="left">purlpe</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">39</td>
+<td align="left">44</td>
+<td align="left">39</td>
 <td align="left">brown</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">40</td>
+<td align="left">44</td>
+<td align="left">40</td>
 <td align="left">red</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">41</td>
+<td align="left">44</td>
+<td align="left">41</td>
 <td align="left">green</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">42</td>
+<td align="left">44</td>
+<td align="left">42</td>
 <td align="left">blue</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">43</td>
+<td align="left">44</td>
+<td align="left">43</td>
 <td align="left">blue</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">44</td>
+<td align="left">44</td>
+<td align="left">44</td>
 <td align="left">purple</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">45</td>
+<td align="left">44</td>
+<td align="left">45</td>
 <td align="left">blue</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">46</td>
+<td align="left">44</td>
+<td align="left">46</td>
 <td align="left">red</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">47</td>
+<td align="left">44</td>
+<td align="left">47</td>
 <td align="left">brown</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">48</td>
+<td align="left">44</td>
+<td align="left">48</td>
 <td align="left">blue</td>
 </tr>
 <tr class="even">
-<td align="right">44</td>
-<td align="right">49</td>
+<td align="left">44</td>
+<td align="left">49</td>
 <td align="left">green</td>
 </tr>
 <tr class="odd">
-<td align="right">44</td>
-<td align="right">50</td>
+<td align="left">44</td>
+<td align="left">50</td>
 <td align="left">red</td>
 </tr>
 </tbody>
@@ -644,130 +683,130 @@ t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
 <table>
 <thead>
 <tr class="header">
-<th align="right">trial</th>
-<th align="right">timestamp</th>
+<th align="left">trial</th>
+<th align="left">timestamp</th>
 <th align="left">event</th>
 <th align="left">data</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="right">1</td>
-<td align="right">175592</td>
+<td align="left">1</td>
+<td align="left">175592</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">GREEN-green.png</td>
 </tr>
 <tr class="even">
-<td align="right">1</td>
-<td align="right">176159</td>
+<td align="left">1</td>
+<td align="left">176159</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">2</td>
-<td align="right">178485</td>
+<td align="left">2</td>
+<td align="left">178485</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">BROWN-brown.png</td>
 </tr>
 <tr class="even">
-<td align="right">2</td>
-<td align="right">179142</td>
+<td align="left">2</td>
+<td align="left">179142</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">3</td>
-<td align="right">181146</td>
+<td align="left">3</td>
+<td align="left">181146</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">BLUE-red.png</td>
 </tr>
 <tr class="even">
-<td align="right">3</td>
-<td align="right">182165</td>
+<td align="left">3</td>
+<td align="left">182165</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">4</td>
-<td align="right">184646</td>
+<td align="left">4</td>
+<td align="left">184646</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">PURPLE-red.png</td>
 </tr>
 <tr class="even">
-<td align="right">4</td>
-<td align="right">185706</td>
+<td align="left">4</td>
+<td align="left">185706</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">5</td>
-<td align="right">187558</td>
+<td align="left">5</td>
+<td align="left">187558</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">GREEN-green.png</td>
 </tr>
 <tr class="even">
-<td align="right">5</td>
-<td align="right">187963</td>
+<td align="left">5</td>
+<td align="left">187963</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">6</td>
-<td align="right">190339</td>
+<td align="left">6</td>
+<td align="left">190339</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">GREEN-brown.png</td>
 </tr>
 <tr class="even">
-<td align="right">7</td>
-<td align="right">192874</td>
+<td align="left">7</td>
+<td align="left">192874</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">BLUE-red.png</td>
 </tr>
 <tr class="odd">
-<td align="right">7</td>
-<td align="right">193606</td>
+<td align="left">7</td>
+<td align="left">193606</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="even">
-<td align="right">…</td>
-<td align="right">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
 <td align="left">…</td>
 <td align="left">…</td>
 </tr>
 <tr class="odd">
-<td align="right">48</td>
-<td align="right">307302</td>
+<td align="left">48</td>
+<td align="left">307302</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">RED-purple.png</td>
 </tr>
 <tr class="even">
-<td align="right">48</td>
-<td align="right">308314</td>
+<td align="left">48</td>
+<td align="left">308314</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">49</td>
-<td align="right">310420</td>
+<td align="left">49</td>
+<td align="left">310420</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">PURPLE-purple.png</td>
 </tr>
 <tr class="even">
-<td align="right">49</td>
-<td align="right">310813</td>
+<td align="left">49</td>
+<td align="left">310813</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
 <tr class="odd">
-<td align="right">50</td>
-<td align="right">312647</td>
+<td align="left">50</td>
+<td align="left">312647</td>
 <td align="left">DISPLAY_ON</td>
 <td align="left">BROWN-brown.png</td>
 </tr>
 <tr class="even">
-<td align="right">50</td>
-<td align="right">313049</td>
+<td align="left">50</td>
+<td align="left">313049</td>
 <td align="left">VOICE_KEY</td>
 <td align="left"></td>
 </tr>
@@ -778,9 +817,10 @@ t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
 <div id="example-results-1" class="section level2">
 <h2>Example Results</h2>
 <div id="results" style="background-color: rgb(220, 220, 255); padding: 5px;">
-<p>We ran <span class="math inline">\(\underline{44}\)</span> participants on a five-colour Stroop task. We had to remove data from <span class="math inline">\(\underline{4}\)</span> participants whose native language was not properly recorded by the experimenter. From the full set of <span class="math inline">\(\underline{2000}\)</span> trials recorded for the remaining participants, we removed <span class="math inline">\(\underline{45}\)</span> trials (<span class="math inline">\(\underline{2.2}\)</span>%) where participants produced the wrong answer and <span class="math inline">\(\underline{19}\)</span> (<span class="math inline">\(\underline{0.9}\)</span>%) further trials that could not be analysed because of voice key failure. This left <span class="math inline">\(\underline{1936}\)</span> trials for analysis.</p>
-<p>For each participant, we calculated the mean response time in the congruent and incongruent condition. On average, speakers responded <span class="math inline">\(\underline{184}\)</span> milliseconds (SD = <span class="math inline">\(\underline{68}\)</span>) <span class="math inline">\(\underline{\text{faster}}\)</span> in the congruent than in the incongruent condition, <span class="math inline">\(t(\underline{39})=\underline{16.95}\)</span>, <span class="math inline">\(p \underline{&lt; .001}\)</span>.</p>
-<p>Native English speakers (N = <span class="math inline">\(\underline{22}\)</span>) showed an average Stroop effect of <span class="math inline">\(\underline{192}\)</span> ms (SD = <span class="math inline">\(\underline{70}\)</span>), compared to an average of <span class="math inline">\(\underline{173}\)</span> ms (SD = <span class="math inline">\(\underline{66}\)</span>), for non-native English speakers (N = <span class="math inline">\(\underline{18}\)</span>). According to a two-tailed independent-samples <span class="math inline">\(t\)</span>-test with <span class="math inline">\(\alpha = .05\)</span>, the group difference <span class="math inline">\(\underline{\text{was not}}\)</span> statistically significant, <span class="math inline">\(t(\underline{38})=\underline{0.85}\)</span>, <span class="math inline">\(p \underline{= 0.401}\)</span>.</p>
+<p>We ran <span class="math inline">\(\underline{44}\)</span> participants on a five-colour Stroop task.</p>
+<p>We had to remove data from <span class="math inline">\(\underline{4}\)</span> participants whose native language was not properly recorded by the experimenter. From the full set of <span class="math inline">\(\underline{2000}\)</span> trials recorded for the remaining participants, we removed <span class="math inline">\(\underline{45}\)</span> trials (<span class="math inline">\(\underline{2.2}\)</span>%) where participants produced the wrong answer and <span class="math inline">\(\underline{19}\)</span> (<span class="math inline">\(\underline{0.9}\)</span>%) further trials that could not be analysed because of voice key failure. This left <span class="math inline">\(\underline{1936}\)</span> trials for analysis. For each participant, we calculated the mean response time in the congruent and incongruent condition.</p>
+<p>On average, speakers responded <span class="math inline">\(\underline{184}\)</span> milliseconds (SD = <span class="math inline">\(\underline{69}\)</span>) <span class="math inline">\(\underline{\text{faster}}\)</span> in the congruent than in the incongruent condition, <span class="math inline">\(t(\underline{39})=\underline{16.95}\)</span>, <span class="math inline">\(p \underline{&lt; .001}\)</span>, <span class="math inline">\(d = \underline{2.68}\)</span>, 95% CI <span class="math inline">\([\underline{162}, \underline{206}]\)</span>.</p>
+<p>Native English speakers (N = <span class="math inline">\(\underline{22}\)</span>) showed an average Stroop effect of <span class="math inline">\(\underline{193}\)</span> ms (SD = <span class="math inline">\(\underline{71}\)</span>), compared to an average of <span class="math inline">\(\underline{174}\)</span> ms (SD = <span class="math inline">\(\underline{67}\)</span>), for non-native English speakers (N = <span class="math inline">\(\underline{18}\)</span>). According to a two-tailed independent-samples <span class="math inline">\(t\)</span>-test with <span class="math inline">\(\alpha = .05\)</span>, the group difference <span class="math inline">\(\underline{\text{was not}}\)</span> statistically significant, <span class="math inline">\(t(\underline{38})=\underline{0.85}\)</span>, <span class="math inline">\(p \underline{= 0.401}\)</span>, <span class="math inline">\(d = \underline{0.27}\)</span>, 95% CI <span class="math inline">\([\underline{-26}, \underline{63}]\)</span>.</p>
 </div>
 </div>
 <div id="analysis-code" class="section level2">
@@ -789,6 +829,7 @@ t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
 <h3>Import</h3>
 <p>First, we load the tidyverse package.</p>
 <pre class="r"><code>library(&quot;tidyverse&quot;)
+library(&quot;lsr&quot;) # for cohensD
 
 ## the data in the subdirectory &#39;sample&#39; was created using the commands:
 ##
@@ -952,26 +993,25 @@ sub_effects &lt;- sub_means_wide %&gt;%
 overall_stroop &lt;- sub_effects %&gt;%
   pull(effect)
 
-overall_mean &lt;- mean(overall_stroop)
-
 overall_sd &lt;- sd(overall_stroop)
 
 ## one-sample t-test
-overall_tstat &lt;- overall_mean /
-  (overall_sd / sqrt(length(overall_stroop))) # standard error
+one_samp_t &lt;- t.test(overall_stroop)
 
-overall_p &lt;- 2 * (1 - pt(abs(overall_tstat),
-                         length(overall_stroop) - 1))
+## effect size
+overall_d &lt;- cohensD(overall_stroop) # from lsr package
 
-## compare groups
+## independent-samples t-test
+t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
+                  var.equal = TRUE)
+
+## descriptives not provided in t-test output
 group_stats &lt;- sub_effects %&gt;%
   group_by(eng_lang) %&gt;%
-  summarise(mean_effect = mean(effect),
-            sd_effect = sd(effect),
-            N = n())
+  summarise(sd_effect = sd(effect), N = n())
 
-t_stats &lt;- t.test(effect ~ eng_lang, sub_effects,
-                  var.equal = TRUE)</code></pre>
+## effect size
+group_d &lt;- cohensD(effect ~ eng_lang, sub_effects)</code></pre>
 </div>
 </div>
 </div>
