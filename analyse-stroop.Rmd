@@ -113,7 +113,8 @@ stopifnot(setequal(colour_variants, stroop_colours))
 trials_cond <- trials_raw %>%
   filter(event == "DISPLAY_ON") %>%
   select(-timestamp, -event) %>%
-  separate(data, c("stimword", "inkcolour"), "-") %>%
+  separate(data, c("stimword", "inkcolour"), "-",
+           remove=FALSE) %>%
   mutate(inkcolour = sub("\\.png$", "", inkcolour), # get rid of .png
          condition = if_else(tolower(stimword) == inkcolour,
                              "congruent", "incongruent"))
@@ -125,10 +126,11 @@ trials_acc <- left_join(trials_cond, transcript,
 trials_rt <- trials_raw %>%
   select(-data) %>%
   pivot_wider(names_from = event, values_from = timestamp) %>%
-  mutate(rt = VOICE_KEY - DISPLAY_ON) %>%
-  select(-DISPLAY_ON, -VOICE_KEY)
+  mutate(rt = VOICE_KEY - DISPLAY_ON)
 
-trials <- inner_join(trials_acc, trials_rt,
+trials <- inner_join(trials_acc %>% select(-data),
+                     trials_rt %>% select(-VOICE_KEY,
+                                          -DISPLAY_ON),
                          c("id", "trial")) %>%
   semi_join(demo %>% filter(!is.na(eng_lang)), "id")
 

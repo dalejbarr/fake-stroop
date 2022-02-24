@@ -947,7 +947,8 @@ stopifnot(setequal(colour_variants, stroop_colours))</code></pre>
 <pre class="r"><code>trials_cond &lt;- trials_raw %&gt;%
   filter(event == &quot;DISPLAY_ON&quot;) %&gt;%
   select(-timestamp, -event) %&gt;%
-  separate(data, c(&quot;stimword&quot;, &quot;inkcolour&quot;), &quot;-&quot;) %&gt;%
+  separate(data, c(&quot;stimword&quot;, &quot;inkcolour&quot;), &quot;-&quot;,
+           remove=FALSE) %&gt;%
   mutate(inkcolour = sub(&quot;\\.png$&quot;, &quot;&quot;, inkcolour), # get rid of .png
          condition = if_else(tolower(stimword) == inkcolour,
                              &quot;congruent&quot;, &quot;incongruent&quot;))
@@ -959,10 +960,11 @@ trials_acc &lt;- left_join(trials_cond, transcript,
 trials_rt &lt;- trials_raw %&gt;%
   select(-data) %&gt;%
   pivot_wider(names_from = event, values_from = timestamp) %&gt;%
-  mutate(rt = VOICE_KEY - DISPLAY_ON) %&gt;%
-  select(-DISPLAY_ON, -VOICE_KEY)
+  mutate(rt = VOICE_KEY - DISPLAY_ON)
 
-trials &lt;- inner_join(trials_acc, trials_rt,
+trials &lt;- inner_join(trials_acc %&gt;% select(-data),
+                     trials_rt %&gt;% select(-VOICE_KEY,
+                                          -DISPLAY_ON),
                          c(&quot;id&quot;, &quot;trial&quot;)) %&gt;%
   semi_join(demo %&gt;% filter(!is.na(eng_lang)), &quot;id&quot;)
 
