@@ -4,6 +4,7 @@ author: "Dale Barr"
 format: 
   html:
     toc: true
+    self-contained: true
 editor: visual
 jupyter: python3
 ---
