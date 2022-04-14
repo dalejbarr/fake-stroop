@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="generator" content="quarto-0.9.238">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta name="author" content="Dale Barr">
+  <title>Analysis of Stroop Data (Python)</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+
+  <script src="analyse-stroop-python_files/libs/clipboard/clipboard.min.js"></script>
+  <script src="analyse-stroop-python_files/libs/quarto-html/quarto.js"></script>
+  <script src="analyse-stroop-python_files/libs/quarto-html/popper.min.js"></script>
+  <script src="analyse-stroop-python_files/libs/quarto-html/tippy.umd.min.js"></script>
+  <script src="analyse-stroop-python_files/libs/quarto-html/anchor.min.js"></script>
+  <link href="analyse-stroop-python_files/libs/quarto-html/tippy.css" rel="stylesheet">
+  <link id="quarto-text-highlighting-styles" href="analyse-stroop-python_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet">
+  <script src="analyse-stroop-python_files/libs/bootstrap/bootstrap.min.js"></script>
+  <link href="analyse-stroop-python_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+  <link href="analyse-stroop-python_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#data-preprocessing" id="toc-data-preprocessing" class="nav-link active" data-scroll-target="#data-preprocessing">Data preprocessing</a>
+<ul class="collapse">
+<li><a href="#data-cleaning" id="toc-data-cleaning" class="nav-link" data-scroll-target="#data-cleaning">Data cleaning</a></li>
+<li><a href="#trial-data" id="toc-trial-data" class="nav-link" data-scroll-target="#trial-data">Trial data</a></li>
+<li><a href="#subject-means" id="toc-subject-means" class="nav-link" data-scroll-target="#subject-means">Subject means</a></li>
+</ul></li>
+<li><a href="#compute-statistics" id="toc-compute-statistics" class="nav-link" data-scroll-target="#compute-statistics">Compute statistics</a></li>
+<li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
+</ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+</div>
+<main class="content" id="quarto-document-content">
+<header id="title-block-header" class="quarto-title-block default">
+
+
+<div class="quarto-title"><h1 class="title display-7">Analysis of Stroop Data (Python)</h1></div><div class="quarto-title-meta"><div><div class="quarto-title-meta-heading">Author</div><div class="quarto-title-meta-contents"><div class="quarto-title-authors"><div><div>
+<p>Dale Barr</p>
+</div></div></div></div></div></div></header>
+
+<!--
+## to run interactively in RStudio, set python install location
+reticulate::use_python("C:/Users/Dale/AppData/Local/Programs/Python/Python310/python.exe")
+-->
+<div id="py-setup" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> IPython.display <span class="im">import</span> display, Markdown</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> stats <span class="im">as</span> st </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> math</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>raw_data_subdir <span class="op">=</span> <span class="st">"sample"</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>stroop_colours <span class="op">=</span> <span class="bu">set</span>([<span class="st">'blue'</span>, <span class="st">'brown'</span>, <span class="st">'green'</span>, <span class="st">'purple'</span>, <span class="st">'red'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="data-preprocessing" class="level2">
+<h2 class="anchored" data-anchor-id="data-preprocessing">Data preprocessing</h2>
+<div class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">## load in demographics</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>demo_raw <span class="op">=</span> pd.read_csv(os.path.join(raw_data_subdir, <span class="st">"demographics.csv"</span>))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">## use regular expression to identify subject data files</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>rx <span class="op">=</span> re.<span class="bu">compile</span>(<span class="st">'^S[0-9]</span><span class="sc">{2}</span><span class="ch">\\</span><span class="st">.csv$'</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>files_todo <span class="op">=</span> <span class="bu">list</span>(<span class="bu">filter</span>(rx.match, os.listdir(raw_data_subdir)))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co">## read in subject data files using a loop</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>li <span class="op">=</span> []</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> f <span class="kw">in</span> files_todo:</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  df <span class="op">=</span> pd.read_csv(os.path.join(raw_data_subdir, f))</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  sub_id <span class="op">=</span> re.sub(<span class="st">"^S([0-9]</span><span class="sc">{2}</span><span class="st">)</span><span class="ch">\\</span><span class="st">.csv$"</span>, <span class="st">"</span><span class="ch">\\</span><span class="st">1"</span>, f)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  li.append(df.assign(<span class="bu">id</span> <span class="op">=</span> <span class="bu">int</span>(sub_id, base <span class="op">=</span> <span class="dv">10</span>)))</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>trials_raw <span class="op">=</span> pd.concat(li, axis <span class="op">=</span> <span class="dv">0</span>, ignore_index <span class="op">=</span> <span class="va">True</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co">## move 'id' to first column</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>col1 <span class="op">=</span> trials_raw.pop(<span class="st">'id'</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>trials_raw.insert(<span class="dv">0</span>, <span class="st">'id'</span>, col1)</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">## read in transcript</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>transcript_raw <span class="op">=</span> pd.read_csv(os.path.join(raw_data_subdir, <span class="st">"transcript.csv"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="data-cleaning" class="level3">
+<h3 class="anchored" data-anchor-id="data-cleaning">Data cleaning</h3>
+<p>Now let’s check any values that were entered by a human for typos and consistency.</p>
+<section id="eng_lang-variable-in-demo_raw" class="level4">
+<h4 class="anchored" data-anchor-id="eng_lang-variable-in-demo_raw"><code>eng_lang</code> variable in <code>demo_raw</code></h4>
+<div class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>demo_raw[<span class="st">'eng_lang'</span>] <span class="op">=</span> demo_raw[<span class="st">'eng_lang'</span>].<span class="bu">str</span>.lower()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">## get rid of bogus ages</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>demo_raw.loc[(demo_raw[<span class="st">'age'</span>] <span class="op">&lt;</span> <span class="dv">16</span>) <span class="op">|</span> (demo_raw[<span class="st">'age'</span>] <span class="op">&gt;</span> <span class="dv">100</span>), <span class="st">'age'</span>] <span class="op">=</span> np.NaN</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">## replace 'nativ' with 'native'</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>demo_raw.loc[demo_raw[<span class="st">'eng_lang'</span>] <span class="op">==</span> <span class="st">'nativ'</span>, <span class="st">'eng_lang'</span>] <span class="op">=</span> <span class="st">'native'</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>el_vals <span class="op">=</span> (</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  demo_raw</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  .dropna(subset <span class="op">=</span> <span class="st">'eng_lang'</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  .drop_duplicates([<span class="st">'eng_lang'</span>])</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>el_vals[<span class="st">'eng_lang'</span>]</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">set</span>(el_vals[<span class="st">'eng_lang'</span>]) <span class="op">!=</span> <span class="bu">set</span>([<span class="st">'native'</span>, <span class="st">'nonnative'</span>]):</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  sys.exit(<span class="st">"anomalous values found in 'eng_lang'"</span>)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>demo <span class="op">=</span> demo_raw</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="response-variable-in-transcript_raw" class="level4">
+<h4 class="anchored" data-anchor-id="response-variable-in-transcript_raw"><code>response</code> variable in <code>transcript_raw</code></h4>
+<div class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>all_resp <span class="op">=</span> <span class="bu">set</span>(transcript_raw[<span class="st">'response'</span>])</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>anom_vals <span class="op">=</span> <span class="bu">sorted</span>(all_resp.difference(stroop_colours))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>repaired <span class="op">=</span> [<span class="st">'blue'</span>, <span class="st">'brown'</span>, <span class="st">'brown'</span>, <span class="st">'brown'</span>, <span class="st">'blue'</span>, <span class="st">'green'</span>, <span class="st">'green'</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>            <span class="st">'purple'</span>, <span class="st">'purple'</span>, <span class="st">'purple'</span>, <span class="st">'purple'</span>, <span class="st">'red'</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>transcript_raw[<span class="st">'response'</span>] <span class="op">=</span> (transcript_raw[<span class="st">'response'</span>]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>                              .replace(anom_vals, repaired))</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="bu">set</span>(transcript_raw[<span class="st">'response'</span>]) <span class="op">!=</span> stroop_colours:</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  sys.exit(<span class="st">"anomalous values detected in transcript `response` column"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="trial-data" class="level3">
+<h3 class="anchored" data-anchor-id="trial-data">Trial data</h3>
+<div class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>tr <span class="op">=</span> (trials_raw</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  .query(<span class="st">'event == "DISPLAY_ON"'</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  .<span class="bu">filter</span>([<span class="st">'id'</span>, <span class="st">'trial'</span>, <span class="st">'data'</span>])</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>tr[[<span class="st">'stimword'</span>, <span class="st">'inkcolour'</span>]] <span class="op">=</span> tr[<span class="st">'data'</span>].<span class="bu">str</span>.split(<span class="st">'-'</span>, <span class="dv">1</span>, expand<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">'inkcolour'</span>] <span class="op">=</span> tr[<span class="st">'inkcolour'</span>].<span class="bu">apply</span>(<span class="kw">lambda</span> x: re.sub(<span class="st">"</span><span class="ch">\\</span><span class="st">.png$"</span>, <span class="st">""</span>, x))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>tr[<span class="st">'condition'</span>] <span class="op">=</span> <span class="st">'incongruent'</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>tr.loc[tr[<span class="st">'stimword'</span>].<span class="bu">str</span>.lower() <span class="op">==</span> tr[<span class="st">'inkcolour'</span>], </span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>       <span class="st">'condition'</span>] <span class="op">=</span> <span class="st">'congruent'</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>tr2 <span class="op">=</span> tr.drop(<span class="st">'data'</span>, axis <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>tr_acc <span class="op">=</span> pd.merge(tr2, transcript_raw, <span class="st">"left"</span>, on <span class="op">=</span> [<span class="st">"id"</span>, <span class="st">"trial"</span>])</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>trials_acc <span class="op">=</span> (tr_acc</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>              .assign(is_accurate <span class="op">=</span> tr_acc[<span class="st">'response'</span>] <span class="op">==</span> tr_acc[<span class="st">'inkcolour'</span>])</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>              )</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>trials_rt <span class="op">=</span> (trials_raw</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  .drop(<span class="st">'data'</span>, axis <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>  .pivot(index <span class="op">=</span> [<span class="st">'id'</span>, <span class="st">'trial'</span>], columns <span class="op">=</span> <span class="st">'event'</span>, values <span class="op">=</span> <span class="st">'timestamp'</span>)</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  .sort_index(level <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">0</span>])</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>trials_rt[<span class="st">'rt'</span>] <span class="op">=</span> trials_rt[<span class="st">'VOICE_KEY'</span>] <span class="op">-</span> trials_rt[<span class="st">'DISPLAY_ON'</span>]</span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>tr4 <span class="op">=</span> pd.merge(trials_acc, </span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>               trials_rt.drop([<span class="st">'DISPLAY_ON'</span>, <span class="st">'VOICE_KEY'</span>], axis <span class="op">=</span> <span class="dv">1</span>),</span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>               on <span class="op">=</span> [<span class="st">'id'</span>, <span class="st">'trial'</span>])</span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="co">## perform a 'semi-join' on demo table excluding missing values for eng_lang</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>in_both <span class="op">=</span> tr4[<span class="st">'id'</span>].isin(<span class="bu">set</span>(demo.query(<span class="st">'eng_lang.notnull()'</span>)[<span class="st">'id'</span>]))</span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a>trials <span class="op">=</span> tr4[in_both]</span>
+<span id="cb5-38"><a href="#cb5-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-39"><a href="#cb5-39" aria-hidden="true" tabindex="-1"></a>n_trials_wrong <span class="op">=</span> <span class="bu">len</span>(trials.query(<span class="st">'is_accurate == False'</span>).index)</span>
+<span id="cb5-40"><a href="#cb5-40" aria-hidden="true" tabindex="-1"></a>n_trials_NA <span class="op">=</span> <span class="bu">len</span>(trials.query(<span class="st">'rt.isnull()'</span>).index)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="subject-means" class="level3">
+<h3 class="anchored" data-anchor-id="subject-means">Subject means</h3>
+<div class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>cb <span class="op">=</span> pd.merge(demo, trials, on <span class="op">=</span> <span class="st">'id'</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>sub_means <span class="op">=</span> (cb</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  .query(<span class="st">'is_accurate'</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  .groupby([<span class="st">'id'</span>, <span class="st">'eng_lang'</span>, <span class="st">'condition'</span>])</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  .agg({<span class="st">'rt'</span> : <span class="st">'mean'</span>})</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  .reset_index()</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>sub_means[<span class="st">'rt'</span>] <span class="op">=</span> <span class="bu">round</span>(sub_means[<span class="st">'rt'</span>]).astype(<span class="st">'int64'</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="co">## this is now the 'idealised' data</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>sub_means_wide <span class="op">=</span> (sub_means</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  .pivot(index <span class="op">=</span> [<span class="st">'id'</span>, <span class="st">'eng_lang'</span>], columns <span class="op">=</span> <span class="st">'condition'</span>, values <span class="op">=</span> <span class="st">'rt'</span>)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  .sort_values([<span class="st">'eng_lang'</span>, <span class="st">'id'</span>], ascending <span class="op">=</span> <span class="va">True</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  .reset_index()</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>  .rename_axis(<span class="va">None</span>, axis <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  .drop(<span class="st">'id'</span>, axis <span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>sub_means_wide</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="co">## make sure we're getting the same subject means that we got from R</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>table_from_r <span class="op">=</span> pd.read_csv(<span class="st">"subject-means.csv"</span>)</span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> sub_means_wide.equals(table_from_r) <span class="op">==</span> <span class="va">False</span>:</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  sys.exit(<span class="st">"'sub_means_wide' did not match result from R"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="compute-statistics" class="level2">
+<h2 class="anchored" data-anchor-id="compute-statistics">Compute statistics</h2>
+<div class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>sub_effects <span class="op">=</span> sub_means_wide.assign(effect <span class="op">=</span> sub_means_wide[<span class="st">'incongruent'</span>] <span class="op">-</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>                                      sub_means_wide[<span class="st">'congruent'</span>])</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>overall_stroop <span class="op">=</span> sub_effects[<span class="st">'effect'</span>]</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>result_1s <span class="op">=</span> st.ttest_1samp(overall_stroop, popmean <span class="op">=</span> <span class="dv">0</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>faster_or_slower <span class="op">=</span> <span class="st">"faster"</span> <span class="cf">if</span> np.mean(overall_stroop) <span class="op">&gt;</span> <span class="dv">0</span> <span class="cf">else</span> <span class="st">"slower"</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>t_crit_1s <span class="op">=</span> st.t.ppf(<span class="fl">.975</span>, <span class="dv">39</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>stderr_1s <span class="op">=</span> np.std(overall_stroop) <span class="op">/</span> math.sqrt(<span class="bu">len</span>(overall_stroop) <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>o_mean <span class="op">=</span> np.mean(overall_stroop)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>ci_lower_1s <span class="op">=</span> <span class="bu">round</span>(o_mean <span class="op">-</span> t_crit_1s <span class="op">*</span> stderr_1s)</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>ci_upper_1s <span class="op">=</span> <span class="bu">round</span>(o_mean <span class="op">+</span> t_crit_1s <span class="op">*</span> stderr_1s)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>native_N <span class="op">=</span> sub_effects.value_counts(<span class="st">'eng_lang'</span>).get(<span class="st">'native'</span>)</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>nonnative_N <span class="op">=</span> <span class="bu">len</span>(sub_effects) <span class="op">-</span> native_N</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>grp_means <span class="op">=</span> (sub_effects</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>             .groupby(<span class="st">'eng_lang'</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>             .agg({<span class="st">'effect'</span> : <span class="st">'mean'</span>})</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>             .reset_index())</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>grp_sd <span class="op">=</span> (sub_effects</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>             .groupby(<span class="st">'eng_lang'</span>)</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>             .agg({<span class="st">'effect'</span> : <span class="st">'std'</span>})</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>             .reset_index())</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>native_eff <span class="op">=</span> grp_means.at[<span class="dv">0</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>nonnative_eff <span class="op">=</span> grp_means.at[<span class="dv">1</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>native_sd <span class="op">=</span> grp_sd.at[<span class="dv">0</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>nonnative_sd <span class="op">=</span> grp_sd.at[<span class="dv">1</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>neff <span class="op">=</span> sub_effects.loc[sub_effects[<span class="st">'eng_lang'</span>] <span class="op">==</span> <span class="st">'native'</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>nneff <span class="op">=</span> sub_effects.loc[sub_effects[<span class="st">'eng_lang'</span>] <span class="op">==</span> <span class="st">'nonnative'</span>, <span class="st">'effect'</span>]</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>ttest_grp <span class="op">=</span> st.ttest_ind(neff, nneff)</span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>sig_or_not <span class="op">=</span> <span class="st">"was"</span> <span class="cf">if</span> ttest_grp.pvalue <span class="op">&lt;</span> <span class="fl">.05</span> <span class="cf">else</span> <span class="st">"was not"</span></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>sd_pooled_num <span class="op">=</span> ((native_N <span class="op">-</span> <span class="dv">1</span>) <span class="op">*</span> (native_sd <span class="op">**</span> <span class="dv">2</span>) <span class="op">+</span> </span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>                 (nonnative_N <span class="op">-</span> <span class="dv">1</span>) <span class="op">*</span> (nonnative_sd <span class="op">**</span> <span class="dv">2</span>))</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>                 </span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>sd_pooled <span class="op">=</span> math.sqrt(sd_pooled_num <span class="op">/</span> (native_N <span class="op">+</span> nonnative_N <span class="op">-</span> <span class="dv">2</span>))</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>cohen_d <span class="op">=</span> <span class="bu">abs</span>(native_eff <span class="op">-</span> nonnative_eff) <span class="op">/</span> sd_pooled</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>std_err <span class="op">=</span> math.sqrt( (native_sd <span class="op">**</span> <span class="dv">2</span>) <span class="op">/</span> native_N <span class="op">+</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>                     (nonnative_sd <span class="op">**</span> <span class="dv">2</span>) <span class="op">/</span> nonnative_N )</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>                     </span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>t_crit <span class="op">=</span> st.t.ppf(<span class="fl">.975</span>, native_N <span class="op">+</span> nonnative_N <span class="op">-</span> <span class="dv">2</span>)</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>ci_lower <span class="op">=</span> (native_eff <span class="op">-</span> nonnative_eff) <span class="op">-</span> t_crit <span class="op">*</span> std_err</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>ci_upper <span class="op">=</span> (native_eff <span class="op">-</span> nonnative_eff) <span class="op">+</span> t_crit <span class="op">*</span> std_err</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="results" class="level2">
+<h2 class="anchored" data-anchor-id="results">Results</h2>
+<div id="results" style="background-color: rgb(220, 220, 255); padding: 5px;">
+<div class="cell" data-execution_count="9">
+<div class="cell-output cell-output-display">
+<p>We ran <span class="math inline">\(\underline{44}\)</span> participants on a five-colour Stroop task.</p>
+</div>
+<div class="cell-output cell-output-display">
+<p>We had to remove data from <span class="math inline">\(\underline{\text{four}}\)</span> participants whose native language was not properly recorded by the experimenter. From the full set of <span class="math inline">\(\underline{2,000}\)</span> trials recorded for the remaining participants, we removed <span class="math inline">\(\underline{45}\)</span> trials (<span class="math inline">\(\underline{2.0}\)</span>%) where participants produced the wrong answer and <span class="math inline">\(\underline{19}\)</span> (<span class="math inline">\(\underline{1.0}\)</span>%) further trials that could not be analysed because of voice key failure. This left <span class="math inline">\(\underline{1,936}\)</span> trials for analysis. For each participant, we calculated the mean response time in the congruent and incongruent condition.</p>
+</div>
+<div class="cell-output cell-output-display">
+<p>On average, speakers responded <span class="math inline">\(\underline{184}\)</span> milliseconds (SD = <span class="math inline">\(\underline{68}\)</span>) <span class="math inline">\(\underline{\text{faster}}\)</span> in the congruent than in the incongruent condition, <span class="math inline">\(t(\underline{39}) = \underline{16.95}\)</span>, <span class="math inline">\(p \underline{&lt; .001}\)</span>, <span class="math inline">\(d = \underline{2.71}\)</span>, 95% CI <span class="math inline">\([\underline{162}, \underline{206}]\)</span>.</p>
+</div>
+<div class="cell-output cell-output-display">
+<p>Native English speakers (N = <span class="math inline">\(\underline{22}\)</span>) showed an average Stroop effect of <span class="math inline">\(\underline{193}\)</span> ms (SD = <span class="math inline">\(\underline{71}\)</span>), compared to an average of <span class="math inline">\(\underline{174}\)</span> ms (SD = <span class="math inline">\(\underline{67}\)</span>), for non-native English speakers (N = <span class="math inline">\(\underline{18}\)</span>). According to a two-tailed independent-samples <span class="math inline">\(t\)</span>-test with <span class="math inline">\(\alpha = .05\)</span>, the group difference <span class="math inline">\(\underline{\text{was not}}\)</span> statistically significant, <span class="math inline">\(t(\underline{38})=\underline{0.85}\)</span>, <span class="math inline">\(p \underline{=0.401}\)</span>, <span class="math inline">\(d = \underline{0.27}\)</span>, 95% CI <span class="math inline">\([\underline{-26}, \underline{63}]\)</span>.</p>
+</div>
+</div>
+</div>
+
+</section>
+</main>
+<!-- /main column -->
+<script type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    setTimeout(function() {
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      let href = ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+    tippyHover(ref, function() {
+      var popup = window.document.createElement('div');
+      cites.forEach(function(cite) {
+        var citeDiv = window.document.createElement('div');
+        citeDiv.classList.add('hanging-indent');
+        citeDiv.classList.add('csl-entry');
+        var biblioDiv = window.document.getElementById('ref-' + cite);
+        if (biblioDiv) {
+          citeDiv.innerHTML = biblioDiv.innerHTML;
+        }
+        popup.appendChild(citeDiv);
+      });
+      return popup.innerHTML;
+    });
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+</body></html>
