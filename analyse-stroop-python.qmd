@@ -85,7 +85,7 @@ demo_raw.loc[demo_raw['eng_lang'] == 'nativ', 'eng_lang'] = 'native'
 
 el_vals = (
   demo_raw
-  .dropna(subset = 'eng_lang')
+  .dropna(subset = ['eng_lang'])
   .drop_duplicates(['eng_lang'])
 )
 
