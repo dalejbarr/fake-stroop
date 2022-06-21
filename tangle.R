@@ -1,3 +1,4 @@
+options(crayon.enabled=FALSE)
 library("tidyverse")
 
 ## tangle into scripts for easy processing later

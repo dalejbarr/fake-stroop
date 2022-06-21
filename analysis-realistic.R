@@ -127,15 +127,18 @@ one_samp_t <- t.test(overall_stroop)
 overall_d <- cohensD(overall_stroop) # from lsr package
 
 ## independent-samples t-test
-t_stats <- t.test(effect ~ eng_lang, sub_effects,
-                  var.equal = TRUE)
+two_samp_t <- t.test(formula = effect ~ eng_lang, 
+                     data = sub_effects,
+                     var.equal = TRUE)
 
 ## descriptives not provided in t-test output
 group_stats <- sub_effects %>%
   group_by(eng_lang) %>%
-  summarise(sd_effect = sd(effect), N = n())
+  summarise(mean_effect = mean(effect),
+            sd_effect = sd(effect), N = n())
 
 ## effect size
-group_d <- cohensD(effect ~ eng_lang, sub_effects)
+group_d <- cohensD(effect ~ eng_lang, 
+                   data = sub_effects)
 
 
