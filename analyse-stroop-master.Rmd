@@ -1,0 +1,840 @@
+---
+title: "Analysis of Simulated Stroop Data"
+output:
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: false
+---
+
+<style>
+.results {
+  background-color: rgb(220, 220, 255); 
+  padding: 1em; 
+  border-radius: 0.25em;
+}
+</style>
+
+<!-- KNITR SETUP: you can skip this chunk if running interactively -->
+
+```{r setup, include=FALSE, purl=FALSE}
+library(knitr)
+
+knitr::opts_chunk$set(echo = TRUE)
+
+## the data in the subdirectory 'sample' was created using the commands:
+##
+## source("simulate-stroop-data.R")
+## set.seed(1001001)
+## save_stroop(make_stroop(40), "sample", TRUE)
+
+## a function to underline output
+.ul <- function(str, delimit = TRUE, text = FALSE) {
+  delimiter <- if (delimit) {
+                 "$"
+               } else {
+                 ""
+               }
+  text_in <- if (text) "\\text{" else ""
+  text_out <- if (text) "}" else ""
+  paste(delimiter, "\\underline{",
+        text_in, str, text_out,
+        "}", delimiter, sep = "")
+}
+
+# custom data.frame knit_print 
+# edit this for your favourite kabelExtra style, or just use knitr::kable
+knit_print.data.frame <- function(x, options, ...) {
+  if (!is.null(options$tab.cap)) {
+    k <- kableExtra::kable(x, caption = options$tab.cap)
+  } else {
+    k <- kableExtra::kable(x)
+  }
+  
+  # set kableExtra style
+  k %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "condensed"),
+    html_font = "FiraCode, Consolas, CourierNew, Courier, sans") %>% 
+    knitr::knit_print(options, ...)
+}
+registerS3method("knit_print", "data.frame", knit_print.data.frame)
+```
+
+```{r tbl-ellipse-def, purl=FALSE, include=FALSE}
+## a function to make it easier to print the top and bottom of truncated tables
+tbl_ellipse <- function(x, nhead = 3, ntail = nhead) {
+  tbl_top <- head(x, nhead) %>% lapply(as.character)
+  tbl_mid <- lapply(seq_along(tbl_top), function(.x) {"..."})
+  names(tbl_mid) <- names(tbl_top)
+  tbl_bot <- tail(x, ntail) %>% lapply(as.character)
+  bind_rows(tbl_top, tbl_mid, tbl_bot)
+}
+```
+
+<!-- DATA PREPROCESSING BEGINS HERE -->
+
+```{r load-packages, include=FALSE}
+## load relevant packages
+library("tidyverse") # for data wrangling
+library("lsr")       # for cohensD
+```
+
+```{r import-demog, include=FALSE}
+## Import demographic data.
+demo_raw <- read_csv("sample/demographics.csv", 
+                     col_types = "iic")
+
+## Import transcript data
+transcript_raw <- read_csv("sample/transcript.csv",
+                           col_types = "iic")
+```
+
+```{r trial-filenames, include=FALSE}
+## The regular expression "^S[0-9]*\\.csv$" is used to match filenames.
+files_to_read <- list.files(path = "sample", 
+                            pattern = "^S[0-9]{2}\\.csv$", 
+                            full.names = TRUE)
+```
+
+```{r import-trials, include=FALSE}
+## We can import multiple files at once, because `read_csv()` is vectorized.
+trials_raw <- read_csv(files_to_read, 
+                       id = "filename", # adds an id column with the filename
+                       col_types = "iicc") %>%
+  ## parse filename to extract subject identifier (integer)
+  mutate(id = gsub("[^0-9]", "", filename) %>% as.integer()) %>%
+  select(-filename) %>%    # remove the filename column
+  select(id, everything()) # re-order columns
+```
+
+```{r eng-lang-recode, include=FALSE}
+## 'age' and 'eng_lang' were manually typed in, so check & repair problems
+demo <- demo_raw %>%
+  mutate(age = ifelse(between(age, 16, 100), age, NA),
+         eng_lang = recode(tolower(eng_lang),
+                           "nativ" = "native"))
+```
+
+```{r eng-lang-check, include=FALSE}
+## check whether there aren't any additional typos we've missed
+eng_variants <- demo %>%
+  filter(!is.na(eng_lang)) %>%
+  distinct(eng_lang) %>%
+  pull(eng_lang)
+
+## stop processing if there are unhandled variants
+language_values <- c("native", "nonnative")
+stopifnot(setequal(eng_variants, language_values))
+```
+
+```{r validate-transcript, include=FALSE}
+## Deal with potential typos in the transcript data
+colour_responses <- transcript_raw %>%
+  count(response) %>%
+  arrange(n)
+```
+
+```{r dput-demo, include=FALSE}
+## can copy and paste into 'recode()' statement
+dput(colour_responses$response)
+```
+
+```{r transcript-recode, include=FALSE}
+## fix typos
+transcript <- transcript_raw %>%
+  mutate(response = recode(response,
+                           "puprle" = "purple", 
+                           "purlpe" = "purple", 
+                           "brwon"  = "brown", 
+                           "pruple" = "purple", 
+                           "purpel" = "purple", 
+                           "bronw"  = "brown", 
+                           "bleu"   = "blue", 
+                           "borwn"  = "brown", 
+                           "geren"  = "green", 
+                           "bule"   = "blue", 
+                           "grene"  = "green", 
+                           "rde"    = "red"))
+```
+
+```{r transcript-recode-check, include=FALSE}
+# check if there are any unhandled variants
+stroop_colours <- c("blue", "brown", "green", "purple", "red")
+
+colour_variants <- transcript %>%
+  distinct(response) %>%
+  pull()
+
+stopifnot(setequal(colour_variants, stroop_colours))
+```
+
+```{r trials-rt, include=FALSE}
+trials_rt <- trials_raw %>%
+  select(-data) %>%
+  pivot_wider(names_from = event, 
+              values_from = timestamp) %>%
+  mutate(rt = VOICE_KEY - DISPLAY_ON)
+```
+
+```{r trials-cond, include=FALSE}
+## derive trial condition
+trials_cond <- trials_raw %>%
+  filter(event == "DISPLAY_ON") %>%
+  select(id, trial, data) %>%
+  separate(data, 
+           into = c("stimword", "inkcolour"), 
+           sep = "-",
+           remove = FALSE) %>%
+  mutate(inkcolour = sub("\\.png$", "", inkcolour), # get rid of .png
+         condition = if_else(tolower(stimword) == inkcolour,
+                             "congruent", "incongruent"))
+```
+
+```{r trials-acc, include=FALSE}
+## calculate accuracy
+trials_acc <- left_join(trials_cond, transcript,
+                        c("id", "trial")) %>%
+  mutate(is_accurate = (response == inkcolour))
+```
+
+```{r trials-join, include=FALSE}
+## combine accuracy and RT data
+trials <- inner_join(trials_acc, trials_rt,
+                     c("id", "trial")) %>%
+  select(-data, -DISPLAY_ON, -VOICE_KEY)
+```
+
+```{r combine-all, include=FALSE}
+## note that we round off the means so they match the idealised data
+sub_means <- inner_join(demo, trials, "id") %>%
+  filter(is_accurate, !is.na(eng_lang)) %>%
+  group_by(id, eng_lang, condition) %>%
+  summarise(mean_rt = round(mean(rt, na.rm = TRUE)),
+            .groups = "drop")
+```
+
+```{r widen, include=FALSE}
+## pivot to wide to allow calculation of subject effects
+sub_means_wide <- sub_means %>%
+  pivot_wider(names_from = condition,
+              values_from = mean_rt)
+```
+
+<!-- DATA PREPROCESSING ENDS HERE -->
+
+```{r save-data, include=FALSE, purl=FALSE}
+## save this data for our demo
+write_csv(sub_means_wide %>%
+          select(-id) %>%
+          arrange(eng_lang) %>%
+          mutate(congruent = round(congruent),
+                 incongruent = round(incongruent)),
+          "subject-means.csv")
+```
+
+<!-- DESCRIPTIVE/INFERENTIAL ANALYSIS BEGINS HERE -->
+
+```{r overall-effect, include=FALSE}
+## calculate the stroop effect for each participant
+sub_effects <- sub_means_wide %>%
+  mutate(effect = incongruent - congruent)
+```
+
+```{r overall-descriptives, include=FALSE}
+# get just the column of interest
+overall_stroop <- sub_effects %>%
+  pull(effect)
+
+## standard deviation
+overall_sd <- sd(overall_stroop)
+
+## one-sample t-test
+one_samp_t <- t.test(overall_stroop)
+
+## effect size
+overall_d <- cohensD(overall_stroop) # from lsr package
+```
+
+```{r group-stats, include=FALSE}
+## descriptives
+group_stats <- sub_effects %>%
+  group_by(eng_lang) %>%
+  summarise(mean_effect = mean(effect),
+            sd_effect = sd(effect), 
+            N = n())
+```
+
+```{r group-ttest, include=FALSE}
+## independent-samples t-test
+two_samp_t <- t.test(formula = effect ~ eng_lang, 
+                  data = sub_effects,
+                  var.equal = TRUE)
+```
+
+```{r group-d, include=FALSE}
+## effect size
+group_d <- cohensD(effect ~ eng_lang, 
+                   data = sub_effects)
+```
+
+<!-- DESCRIPTIVE/INFERENTIAL ANALYSIS ENDS HERE -->
+
+<!-- CREATE VARIABLES FOR INCLUSION IN DYNAMIC REPORT -->
+
+```{r text-template, include=FALSE, purl=FALSE}
+results_text <- "We ran {n_sub_total} participants on a five-colour Stroop task. 
+
+We had to remove data from {n_nolang} participants whose native language was not properly recorded by the experimenter. From the full set of {n_all_trials} trials recorded for the remaining participants, we removed {n_trials_wrong} trials ({pcnt_trials_wrong}%) where participants produced the wrong answer and {n_trials_NA} ({pcnt_trials_NA}%) further trials that could not be analysed because of voice key failure. This left {n_analysed_trials} trials for analysis. For each participant, we calculated the mean response time in the congruent and incongruent condition.
+
+On average, speakers responded {avg_effect} milliseconds (SD = {avg_sd})
+{faster_or_slower} in the congruent than in the incongruent condition,
+$t({avg_df}) = {avg_t}$, 
+$p {avg_p_eq} {avg_p}$, 
+$d = {avg_d}$,
+95% CI $[{avg_ci[1]}, {avg_ci[2]}]$.
+
+Native English speakers (N = {native_n}) 
+showed an average Stroop effect of {native_effect} ms (SD = {native_sd}), 
+compared to an average of {nonnative_effect} ms (SD = {nonnative_sd}), 
+for non-native English speakers (N = {nonnative_n}). 
+According to a two-tailed independent-samples $t$-test with $\\alpha = .05$, 
+the group difference {sig_or_not} statistically significant, 
+$t({group_df}) = {group_t}$, 
+$p {group_p_eq} {group_p}$, 
+$d = {group_d}$,
+95% CI $[{group_ci[1]}, {group_ci[2]}]$."
+```
+
+```{r results-text-idealised, include=FALSE, purl=FALSE}
+## shortened results for idealised analysis
+.s1 <- stringr::str_locate(results_text, "We had to remove")[1, "start"]
+.s2 <- stringr::str_locate(results_text, "\nOn average")
+
+results_text_idealised <- paste0(substr(results_text, 1, .s1 - 1L),
+       substr(results_text, .s2 - 1L, nchar(results_text)))
+```
+
+```{r reporting, include=FALSE, purl=FALSE}
+n_sub_total <- nrow(demo)
+
+n_nolang <- demo %>% filter(is.na(eng_lang)) %>% nrow()
+
+n_all_trials <- trials %>% 
+  semi_join(sub_means, by = "id") %>% 
+  nrow() 
+
+n_trials_wrong <- trials %>% 
+  semi_join(sub_means, by = "id") %>%
+  filter(!is_accurate) %>%
+  nrow()
+
+pcnt_trials_wrong <- (100*n_trials_wrong/n_all_trials) %>% round(1)
+
+n_trials_NA <- trials %>% 
+  semi_join(sub_means, by = "id") %>%
+  filter(is_accurate, is.na(rt)) %>% nrow()
+
+pcnt_trials_NA <- (100*n_trials_NA/n_all_trials) %>% round(1)
+
+n_analysed_trials <- n_all_trials - n_trials_wrong - n_trials_NA
+
+avg_effect <- one_samp_t$estimate %>% round(0)
+avg_sd <- overall_sd %>% round(0)
+avg_df <- one_samp_t$parameter
+avg_t <- one_samp_t$statistic %>% round(2)
+avg_ci <- one_samp_t$conf.int %>% round(0)
+avg_d <- overall_d %>% round(2)
+
+faster_or_slower <- if (avg_effect > 0) "faster" else "slower"
+
+## handle if p-value < .001
+if (one_samp_t$p.value < .001) {
+  avg_p <- .001
+  avg_p_eq <- "<"
+} else {
+  avg_p <- one_samp_t$p.value %>% round(3)
+  avg_p_eq <- "="
+}
+
+native <- group_stats %>% filter(eng_lang == "native")
+nonnative <- group_stats %>% filter(eng_lang == "nonnative")
+
+native_n <- native$N
+native_effect <- native$mean_effect %>% round(0)
+native_sd <- native$sd_effect %>% round(0)
+nonnative_n <- nonnative$N
+nonnative_effect <- nonnative$mean_effect %>% round(0)
+nonnative_sd <- nonnative$sd_effect %>% round(0)
+
+sig_or_not <- if (two_samp_t[["p.value"]] < .05) "was" else "was not"
+
+group_df <- two_samp_t$parameter
+group_t <- two_samp_t$statistic %>% round(2)
+group_ci <- two_samp_t$conf.int %>% round(0)
+group_d <- group_d %>% round(2)
+
+# handle if p-value < .001
+if (two_samp_t$p.value < .001) {
+  group_p <- .001
+  group_p_eq <- "<"
+} else {
+  group_p <- two_samp_t$p.value %>% round(3)
+  group_p_eq <- "="
+}
+```
+
+<!-- PULL OUT SOME EXAMPLE DATA THAT HAS TYPOS (for realistic tutorial) -->
+
+```{r get-target-trial-data, include=FALSE, purl=FALSE}
+raw_data_subdir <- "sample"
+
+## choose a subject where there is a missing voice key sometime early
+fname_fmt <- dir(raw_data_subdir, "^S[0-9]+\\.csv$")[1]
+n_zero_padding <- nchar(fname_fmt) - 5
+.fmt_string <- paste0("S%0", n_zero_padding, "d.csv")
+
+.targ_subject <- trials %>%
+  filter(is.na(rt)) %>%
+  filter(trial == min(trial)) %>%
+  slice(1)
+
+.targ_id <- pull(.targ_subject, id)
+.targ_n <- pull(.targ_subject, trial) %>% `*`(2) %>% `+`(1)
+
+.targ_file <- sprintf(.fmt_string, .targ_id)
+
+.targ_data <- read_csv(file.path(raw_data_subdir, .targ_file),
+                       col_types = "iicc") %>%
+  mutate(data = if_else(is.na(data), "", data))
+```
+
+```{r get-demo-typo, include=FALSE, purl=FALSE}
+## show enough of the demo data so that at least one typo is seen
+.median_row_d <- as.integer((nrow(demo_raw) + 1) / 2)
+
+.d_targ_row <- demo_raw %>%
+  mutate(rn0 = row_number(),
+         rn = rn0 - .median_row_d) %>%
+  filter(!is.na(eng_lang)) %>%
+  filter(!tolower(eng_lang) %in% c("native", "nonnative")) %>%
+  filter(abs(rn) == max(abs(rn))) %>%
+  slice(1)
+
+.d_targ_id <- .d_targ_row %>% pull(id)
+.d_targ_rnd <- .d_targ_row %>% pull(rn)
+.d_targ_typo <- .d_targ_row %>% pull(eng_lang)
+
+.d_headtail <- if (.d_targ_rnd < 0) {
+               c(.d_targ_row %>% pull(rn0), 3)
+             } else {
+               c(3, nrow(transcript_raw) - (.d_targ_row %>% pull(rn0)) + 1)
+             }
+
+```
+
+```{r get-transcript-typo, include=FALSE, purl=FALSE}
+## show enough of the transcript data so that at least one typo is seen
+.median_row <- as.integer((nrow(transcript_raw) + 1) / 2)
+
+.tr_targ_row <- transcript_raw %>%
+  mutate(rn0 = row_number(),
+         rn = rn0 - .median_row) %>%
+  filter(!response %in% stroop_colours) %>%
+  filter(abs(rn) == max(abs(rn))) %>%
+  slice(1)
+
+.tr_targ_id <- .tr_targ_row %>% pull(id)
+.tr_targ_tn <- .tr_targ_row %>% pull(trial)
+
+.tr_targ_rnd <- .tr_targ_row %>% pull(rn)
+
+.tr_targ_typo <- .tr_targ_row %>% pull(response)
+
+.headtail <- if (.tr_targ_rnd < 0) {
+               c(.tr_targ_row %>% pull(rn0), 3)
+             } else {
+               c(3, nrow(transcript_raw) - (.tr_targ_row %>% pull(rn0)) + 1)
+             }
+```
+
+<!-- SAVE EVERYTHING FOR USE IN THE PAPER -->
+
+```{r save-image, purl=FALSE, include=FALSE}
+save.image("analysis.RData")
+```
+
+<!-- TUTORIAL BEGINS HERE -->
+
+This tutorial will provide an example of how to use computationally reproducible methods to generate descriptive and inferential statistics for data from a Stroop task. The code below compares the steps needed to do this for [idealised data](#idealised-data), where each subject's mean reaction time for congruent and incongruent trials is already calculated, versus [realistic data](#realistic-data), where data is provided at the trial level and across several files, requiring processing.
+
+# Idealised data
+
+This section shows how a results section might be written by someone given pre-processed data with subject means only (i.e., the data in `subject-means.csv`).
+
+## Source Data
+
+```{r show-subject-means, echo=FALSE, purl=FALSE, tab.cap="The first three and last three rows in the `subject-means.csv` table."}
+read_csv("subject-means.csv", col_types = "cii") %>%
+  tbl_ellipse()
+```
+
+## Example Results
+
+::: {.results}
+
+```{r ideal-results-print, echo=FALSE, purl=FALSE, results='asis'}
+glue::glue(results_text_idealised)
+```
+
+:::
+
+## Example Code
+
+```{r load-packages-show, ref.label="load-packages", eval=FALSE, purl=FALSE}
+```
+
+### Import
+
+Read in the data with the appropriate function for the data type. Our example is in a CSV file, so we use `read_csv()`. We'll call the table `sub_means_wide` for reasons that will become apparent later in this tutorial. 
+
+```{r idealised-import, purl=FALSE}
+# read in the data
+sub_means_wide <- read_csv("subject-means.csv", col_types = "cii")
+```
+
+### Overall Stroop effect
+
+First, calculate the Stroop effect for each participant by creating a new column in the `sub_means_wide` table called `effect`. Calculate the value of this column as the difference between the values in the `incongruent` and `congruent` columns. Save this new table as `sub_effects`. 
+
+```{r overall-effect-show, ref.label="overall-effect", purl=FALSE}
+```
+
+```{r, echo = FALSE, purl=FALSE, tab.cap = "The `sub_effects` table."}
+tbl_ellipse(sub_effects)
+```
+
+Now you can use the data in this new column to calculate descriptive and inferential statistics, such as the standard deviation, a one-sample t-test, and the Cohen's d effect size.
+
+```{r overall-descriptives-show, ref.label="overall-descriptives", purl=FALSE}
+```
+
+Print out all the statistics for the overall Stroop effect.
+
+```{r idealised-print-overall, purl=FALSE}
+overall_sd
+
+one_samp_t
+
+overall_d
+```
+
+### Group differences
+
+You can also test for group differences. Do native English speakers show a larger Stroop effect than non-native English speakers? Calculate some descriptive stats for the Stroop effect (`effect`) on each language group (`eng_lang`). 
+
+```{r group-stats-show, ref.label="group-stats", purl=FALSE}
+```
+
+```{r group-stats-print, tab.cap = "The `group_stats` table.", purl=FALSE}
+group_stats # print the result
+```
+
+Use an independent-samples t-test to determine if this difference is significant.
+
+```{r group-ttest-show, ref.label="group-ttest", purl=FALSE}
+```
+
+```{r group-ttest-print, purl=FALSE}
+two_samp_t # print the result
+```
+
+Finally, calculate the Cohen's d effect size.
+
+```{r group-d-show, ref.label="group-d", purl=FALSE}
+```
+
+```{r group-d-print, purl=FALSE}
+group_d # print the result
+```
+
+# Realistic data
+
+Data don't naturally come in the format above, however. Someone had to process trial-level data to create those average values, and combine it with questionnaire data to determine if each subject is a native or non-native English speaker. You *can* do this process in Excel, but there are so many ways to introduce mistakes that are difficult or impossible to catch, and the process usually needs to be done from scratch every time the underlying data change. 
+
+The code below shows how to process the raw Stroop data in a computationally reproducible manner. As always, this is a little bit more work up front, but takes only seconds to re-run if you collect more data or want to run a replication. And while it's no guarantee against mistakes, it does help make them findable and fixable if someone looks for them.
+
+## Source data
+
+We have `r (.nf <- length(dir(raw_data_subdir)))` files in the subdirectory `"`r raw_data_subdir`"`. Of these files, `demographics.csv` contains demographic information about participants, `transcript.csv` has the transcribed verbal response for each trial by each participant, and the remaining `r .nf - 2` files (`SXX.csv`) contain timestamps that were output by the experiment control software that we will need in order to compute response time. Each participant is uniquely identified by an integer number, represented by the variable `id`.
+
+### `demographics.csv`
+
+The demographics table tells us each subject's age and whether they are a native or non-native English speaker. Note that there are some impossible `age` values and some typos in the `eng_lang` column. 
+
+```{r show-demographics, purl=FALSE, echo=FALSE, tab.cap = "The `demo_raw` table."}
+tbl_ellipse(demo_raw %>% replace_na(list(eng_lang = "")),
+            .d_headtail[1], .d_headtail[2])
+```
+
+### `transcript.csv`
+
+Note that the transcript file contains typos (e.g., ``r .tr_targ_typo``, observed for participant `r .tr_targ_id` on trial `r .tr_targ_tn`) because the values were entered by the experimenter in real time as the experiment progressed.
+
+```{r show-transcript, purl=FALSE, echo=FALSE, tab.cap = "The `transcript_raw` table."}
+tbl_ellipse(transcript_raw, .headtail[1], .headtail[2])
+```
+
+### Trial data
+
+To illustrate the trial data, below we display data from a single file with trial data `(`r .targ_file`)`. Note that there are `r .nf - 3` more of these files in the subdirectory containing the raw data.
+
+Each subject has a file listing the `timestamp` for two `event`s: the stimulus display (event: DISPLAY_ON) and vocal response (event: VOICE_KEY) for each `trial`. The difference between these two values is the reaction time. There is also a `data` column that contains the name of the image stimulus; names like "BLUE-red.png" mean that the work BLUE was written in red text, so the appropriate vocal response would be "red".
+
+```{r show-trial-data, purl=FALSE, echo=FALSE, tab.cap = paste0("The table for file `", .targ_file, "`.")}
+tbl_ellipse(.targ_data, nhead = .targ_n, ntail = 6)
+```
+
+## Example Results
+
+The results paragraph that we are aiming to write will look almost identical to the results text for the idealised results above, with the exception of a new paragraph describing exclusions.
+
+::: {.results}
+
+```{r reporting-again, ref.label = "reporting", purl=FALSE, echo=FALSE}
+```
+
+```{r real-results-print, echo=FALSE, purl=FALSE, results='asis'}
+glue::glue(results_text)
+```
+
+:::
+
+## Analysis code
+
+First, we load the relevant packages.
+
+```{r realistic-setup, ref.label="idealised-setup", eval = FALSE, purl=FALSE}
+```
+
+### Import
+
+Import the demographic and transcript data. The `col_types` argument makes sure that columns are imported correctly as integers ("i") or characters ("c").
+
+```{r import-demog-show, ref.label="import-demog", purl=FALSE}
+```
+
+It's a little trickier to import the trial data. First get a list of the files in the "sample" directory that match the pattern `"^S[0-9]*\\.csv$"`. This is a regular expression for files that start with (`^`) the letter "S" (`S`) and then have digits `[0-9]` twice (`{2}`), then a full stop (`\\.`) and "csv" (`csv`) at the end (`$`). However, you could also just use the pattern `^S` here, since all the files you want start with S and no other files in the "sample" directory do.
+
+<!-- should we just simplify this and say the regex can be more complex if you need? -->
+
+```{r trial-filenames-show, ref.label="trial-filenames", purl=FALSE}
+```
+
+```{r trial-filenames-print, purl=FALSE}
+files_to_read # print the file names to check
+```
+
+Now you can read in all of the files to a single data table. Add an `id` column called "filename", which will contain the name of each imported file. Use the `gsub()` function to replace all non-digits (`"[^0-9]"`) with and empty string (`""`) and convert that to an integer so the `id` column just has the subject numbers in integer format. 
+
+De-select the `filename` column and select the `id` column and then `everything()` to get the columns in order. This isn't strictly necessary, but you should check your processed data after each step, and getting rid of unnecessary columns and keeping things in an intuitive order helps you to spot errors.
+
+<!-- I simplified the id parsing -->
+
+```{r import-trials-show, ref.label="import-trials", purl=FALSE}
+```
+
+```{r, echo = FALSE, purl=FALSE, tab.cap = "The `trials_raw` table."}
+tbl_ellipse(trials_raw)
+```
+
+### Validate the imported data
+
+Any data values entered manually should be checked for typos before proceeding. This would include the demographic fields `age` and `eng_lang` as well as the values of `response` from the transcript data.
+
+Doing this computationally, without changing the raw data files, protects you against mistakes, such as accidentally searching and replacing the wrong value and saving over your original data before you catch the mistake. Learning how to validate data takes some practice; just go step-by-step and look at your tables after every step to do a sense check. 
+
+We observe the following variants for `eng_lang` (should only be `native` and `nonnative`).
+
+```{r eng-lang-variants, purl=FALSE, tab.cap = "Variant responses to `eng_lang`."}
+demo_raw %>%
+  count(eng_lang)
+```
+
+We should also look at the distribution of age and get rid of any unusual values, because they are likely to be typos. A reasonable assumption about the age range would be 16--100 years old, but this will depend on your particular data set.
+
+```{r age-dist, purl=FALSE, tab.cap = "Implausible responses for `age`."}
+demo_raw %>%
+  filter(!between(age, 16, 100))
+```
+
+Set the value of age to `age` if it is between 16 and 100, and `NA` if not. Make all values of `eng_lang` lowercase and replace the typos with their correct values. 
+
+```{r eng-lang-recode-show, ref.label="eng-lang-recode", purl=FALSE}
+```
+
+```{r demo-show-tab, purl=FALSE, echo = FALSE, tab.cap = "The `demo` table."}
+tbl_ellipse(demo)
+```
+
+You would potentially need to change this code if the raw data changed (e.g., because a new subject was added) because new variants could be introduced. Therefore, we add a check so that all processing will stop if we encounter typos that we haven't handled.
+
+```{r eng-lang-check-show, ref.label="eng-lang-check", purl=FALSE}
+```
+
+Let's do the same for the transcript data, because the human coder is likely to have made typos when entering the spoken response. Arrange the results by `n` because we assume the incorrect responses will be less frequent.
+
+```{r validate-transcript-show, ref.label="validate-transcript", purl=FALSE}
+```
+
+```{r validate-transcript-print, echo=FALSE, purl=FALSE, tab.cap = "Variant colour responses."}
+colour_responses # print to check
+```
+
+Fix the transcript data using `recode()` like above. A nice trick to print the values from a vector in a format that you can copy and paste is to use `dput()`. That way you can avoid introducing further typos :)
+
+```{r dput-demo-show, ref.label = "dput-demo", purl=FALSE}
+```
+
+<!-- changed to match the order from dput -->
+
+```{r transcript-recode-show, ref.label="transcript-recode", purl=FALSE}
+```
+
+```{r trans-print, echo = FALSE, purl=FALSE, tab.cap = "The `transcript` table."}
+tbl_ellipse(transcript)
+```
+
+Add a check for missed variants.
+
+```{r transcript-recode-check-show, ref.label="transcript-recode-check", purl=FALSE}
+```
+
+### Compute trial information
+
+The table `trials_raw` contains timestamps corresponding to two critical events, when the display appeared on the screen (`DISPLAY_ON`) and when the voice key was activated by the subject's verbal response (`VOICE_KEY`). The way timestamps usually work is that there is a timer with millisecond resolution running in the background. When an event occurs, the value of this timer is recorded along with the name of the event, and potentially additional data associated with the event (such as the name of the stimulus file that was displayed). We calculate reaction time by determining the latency between each `DISPLAY_ON` and `VOICE_KEY` event. 
+
+#### Reaction time
+
+The `trials_raw` table is in long format, with two rows for each id:trial combo, one for the DISPLAY_ON event and one for the VOICE_KEY event. We want to get this into a wider format where there is a column for DISPLAY_ON and a column for VOICE_KEY, with one row per id:trial. 
+
+```{r traw-print, purl=FALSE, echo = FALSE, tab.cap="The trials_raw table, in long format."}
+tbl_ellipse(trials_raw)
+```
+
+First, get rid of the `data` column; we'll process that later. The `pivot_wider()` function will create two new columns whose names are derived from values of the `event` column, and the values in each of these new columns will be taken from the `timestamp` column. Then calculate the `rt` as the value from the `VOICE_KEY` column minus the value from the `DISPLAY_ON` column.
+
+On some trials the voice key failed, which would result in a `DISPLAY_ON` event with no accompanying `VOICE_KEY` event. The timestamps for these missing `VOICE_KEY` events will automatically be filled in with missing values when we pivot the data table from long to wide.
+
+```{r trials-rt-show, ref.label="trials-rt", purl=FALSE}
+```
+
+```{r trt-print, purl=FALSE, echo = FALSE, tab.cap = "The `trials_rt` table, in wider format."}
+tbl_ellipse(trials_rt)
+```
+
+#### Trial condition
+
+We identify characteristics of the stimulus by consulting the filename of the image file in the data field of each `DISPLAY_ON` event. Each file is assumed to be an image file in PNG format, named according to the scheme `WORDCOLOUR-displaycolour.png`; for instance, `RED-green.png` would be a PNG image containing the word RED displayed in a green colour.
+
+We determine what condition the trial is in (congruent or incongruent) by comparing the display colour to the stimulus identity. First filter to just the rows where the venet is DISPLAY_ON and select just the columns you need. Separate the `data` column into two new columns, `stimword` and `inkcolour`, separating at the `"-"` and not removing the orignal `data` column (so we can do a sense check). Then use `mutate()` to search and replace `".png"` in the `inkcolour` column. Finally, check if the lowercase version of `stimword` is equivalent to the `inkcolour`, and set the `condition` column to `"congruent"` if it is and `"incongruent"` if it isn't.
+
+```{r trials-cond-show, ref.label="trials-cond", purl=FALSE}
+```
+
+```{r tcond-print, purl=FALSE, echo = FALSE, tab.cap = "The `trials_cond` table."}
+tbl_ellipse(trials_cond)
+```
+
+#### Response accuracy
+
+Determine the accuracy of each response by comparing the transcript with information about the display colour. The `left_join()` function adds data from the `transcript` table to the `trials_cond` table, matching rows based on the values in the `id` and `trial` columns. Trials are accurate if the `response` equals the `inkcolour`.
+
+```{r trials-acc-show, ref.label="trials-acc", purl=FALSE}
+```
+
+```{r tacc-print, purl=FALSE, echo = FALSE, tab.cap = "The `trials_acc` table."}
+tbl_ellipse(trials_acc)
+```
+
+#### Join trial data
+
+Join the `trials_rt`  table to the `trials_acc` table, matching rows based on `id` and `trial`. An `inner_join()` keeps only the rows that have a match in both tables. Get rid of unnecessary columns.
+
+<!-- I didn't filter to just the people in demo with language values because I found it hard to explain and the filter inside a semi join was messy. I deal with this at the end when calculating values for the new results text. -->
+
+```{r trials-join-show, ref.label="trials-join", purl=FALSE}
+```
+
+```{r tj-print, purl=FALSE, echo = FALSE, tab.cap = "The `trials` table."}
+tbl_ellipse(trials)
+```
+
+
+### Combine demographic and trial info and compute subject means
+
+Join the `demo` and `trials` data by `id` and filter the results to only accurate trials from subjects who have a non-missing value for language. Calculate the mean rt for each condition for each subject by grouping by `id` and `condition` (include `eng_lang` to keep this column in the resulting table). Set `na.rm = TRUE` in the `mean()` function to ignore values from trials where `rt` couldn't be calculated. Note that we only round off the means so that our results will be identical to the idealised data, which used rounded-off subject means.
+
+<!-- is it necessary to make mean_rt an integer? it might cause unwanted cargo-cult behaviour -->
+
+```{r combine-all-show, ref.label="combine-all", purl=FALSE}
+```
+
+```{r ca-tbl-print, purl=FALSE, echo = FALSE, tab.cap = "The `sub_means` table."}
+tbl_ellipse(sub_means)
+```
+
+
+### Descriptive and inferential statistics
+
+Following these stages, the analysis will proceed in the same manner as for the idealised data. Before that happens, we need to get the data into wide format to be able to compute the Stroop effect for each participant.
+
+```{r widen-show, ref.label="widen", purl=FALSE}
+```
+
+```{r smw-print, purl=FALSE, echo = FALSE, tab.cap = "The `sub_means_wide` table."}
+tbl_ellipse(sub_means_wide)
+```
+
+Although the remaining code is identical to what we did for the idealised data, we repeat it here for the sake of completeness.
+
+```{r idealised-repeat, purl=FALSE, ref.label=c("overall-effect", "overall-descriptives", "group-stats", "group-ttest", "group-d")}
+```
+
+# Bonus: Generate results text
+
+Rather than copying and pasting our results into a report, we can generate output programmatically using code. In this section, we give an example of how this can be done. The code can be copied into an RMarkdown file and then compiled into a report in HTML or PDF format. To do this, we'll need to use functions from the **`{glue}`** package.
+
+```{r load-glue, purl=FALSE}
+library("glue")      # for combining variables with text
+```
+
+## Text template
+
+The way that this works is that we create a text template where variables appear between curly braces; for instance, `"We ran {n_sub_total} participants"` where between each pair of braces is the name of a variable (e.g., `n_sub_total`) that contains the value (e.g., `r n_sub_total`) we want to appear in the output text. We will then use the `glue()` function to replace all the variables in curly braces with their values.
+
+```{r text-template-show, ref.label = "text-template", purl=FALSE}
+```
+
+## Variables
+
+We want to report how many trials were omitted because they were wrong or had missing reaction times, but only from the subjects who were included in the final analysis. Use `semi_join()` to only keep data from `trials` where there is a matching `id` in `sub_means`, filter to the trials that were not accurate, or that were accurate but had missing `rt`, and count the rows. Also include descriptive and inferential statistics.
+
+```{r reporting-show, purl=FALSE, ref.label="reporting"}
+```
+
+## Glue
+
+Use the `glue()` function to replace `{variable}` in the `results_text` with the values. 
+
+```{r glue, purl=FALSE, eval=FALSE}
+glue(results_text)
+```
+
+::: {.results}
+
+```{r glue-print, ref.label = "glue", results = 'asis', echo=FALSE, purl=FALSE}
+```
+
+:::
